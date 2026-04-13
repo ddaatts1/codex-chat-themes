@@ -4,6 +4,12 @@ Theme switcher for the open-source Codex CLI on Windows x64.
 
 This repo adds a few user-message layouts to the Codex TUI and installs a small `codex-theme` command so you can switch between them from `cmd.exe` or PowerShell.
 
+## Visual Reference
+
+This screenshot shows the flatter, lower-border visual direction used while shaping these Windows chat themes. Treat it as a style reference rather than a pixel-exact preview of every theme in this repo.
+
+![Codex chat theme reference](assets/codex-theme-reference.png)
+
 Supported themes:
 
 - `box`: framed user prompt with the `You` label
