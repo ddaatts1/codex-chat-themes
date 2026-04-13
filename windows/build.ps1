@@ -1,5 +1,3 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [Parameter(Mandatory = $true)]
     [string]$CodexSourcePath,
@@ -7,6 +5,8 @@ param(
     [ValidateSet("Debug", "Release", "debug", "release")]
     [string]$Configuration = "Release"
 )
+
+$ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $patchPath = Join-Path $repoRoot "patches\codex-chat-themes.patch"
@@ -16,6 +16,16 @@ $tempDir = Join-Path $resolvedBuildRoot "temp"
 $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
 $configLower = $Configuration.ToLowerInvariant()
 $cargoArgs = @("build", "-p", "codex-cli", "--bin", "codex")
+
+if (Test-Path -LiteralPath (Join-Path $resolvedSource "Cargo.toml")) {
+    $cargoWorkspace = $resolvedSource
+}
+elseif (Test-Path -LiteralPath (Join-Path $resolvedSource "codex-rs\Cargo.toml")) {
+    $cargoWorkspace = Join-Path $resolvedSource "codex-rs"
+}
+else {
+    throw "Could not find Cargo.toml in $resolvedSource or $resolvedSource\\codex-rs"
+}
 
 if ($configLower -eq "release") {
     $cargoArgs += "--release"
@@ -60,7 +70,7 @@ try {
 
     $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
     $cargoCommand = $cargoArgs -join ' '
-    $cmd = "call `"$vcvars`" && set PATH=$cargoBin;%PATH% && set `"CARGO_TARGET_DIR=$resolvedBuildRoot`" && set `"TEMP=$tempDir`" && set `"TMP=$tempDir`" && cargo $cargoCommand"
+    $cmd = "call `"$vcvars`" && set PATH=$cargoBin;%PATH% && set `"CARGO_TARGET_DIR=$resolvedBuildRoot`" && set `"TEMP=$tempDir`" && set `"TMP=$tempDir`" && cd /d `"$cargoWorkspace`" && cargo $cargoCommand"
     cmd.exe /d /s /c $cmd
     if ($LASTEXITCODE -ne 0) {
         throw "cargo build failed with exit code $LASTEXITCODE"

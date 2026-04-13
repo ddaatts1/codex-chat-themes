@@ -1,5 +1,3 @@
-$ErrorActionPreference = "Stop"
-
 param(
     [string]$CodexSourcePath,
     [string]$BuildRoot = "D:\codex-build-themes",
@@ -8,6 +6,8 @@ param(
     [ValidateSet("Debug", "Release", "debug", "release")]
     [string]$Configuration = "Release"
 )
+
+$ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $defaultSourcePath = Join-Path (Split-Path -Parent $repoRoot) "codex-src"
