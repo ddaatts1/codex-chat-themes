@@ -1,0 +1,318 @@
+diff --git a/codex-rs/tui/src/history_cell.rs b/codex-rs/tui/src/history_cell.rs
+index 987005d..9ba0353 100644
+--- a/codex-rs/tui/src/history_cell.rs
++++ b/codex-rs/tui/src/history_cell.rs
+@@ -25,14 +25,16 @@ use crate::render::line_utils::line_to_static;
+ use crate::render::line_utils::prefix_lines;
+ use crate::render::line_utils::push_owned_lines;
+ use crate::render::renderable::Renderable;
++use crate::style::UserMessageTheme;
+ use crate::style::proposed_plan_style;
++use crate::style::user_message_border_style;
+ use crate::style::user_message_style;
++use crate::style::user_message_theme;
+ #[cfg(test)]
+ use crate::test_support::PathBufExt;
+ use crate::text_formatting::format_and_truncate_tool_result;
+ use crate::text_formatting::truncate_text;
+ use crate::tooltips;
+-use crate::ui_consts::LIVE_PREFIX_COLS;
+ use crate::update_action::UpdateAction;
+ use crate::version::CODEX_CLI_VERSION;
+ use crate::wrapping::RtOptions;
+@@ -296,15 +298,128 @@ fn trim_trailing_blank_lines(mut lines: Vec<Line<'static>>) -> Vec<Line<'static>
+     lines
+ }
+ 
++const USER_BOX_MIN_WIDTH: u16 = 12;
++const USER_BOX_HORIZONTAL_CHROME: u16 = 4;
++const USER_BAR_MIN_WIDTH: u16 = 8;
++const USER_BAR_PREFIX_WIDTH: u16 = 2;
++
++fn pad_line_to_width(mut line: Line<'static>, target_width: usize, style: Style) -> Line<'static> {
++    let pad = target_width.saturating_sub(line.width());
++    if pad > 0 {
++        line.spans.push(Span::styled(" ".repeat(pad), style));
++    }
++    line.style = style;
++    line
++}
++
++fn user_box_rule(
++    left: &str,
++    right: &str,
++    middle_width: usize,
++    style: Style,
++    title: Option<&str>,
++) -> Line<'static> {
++    let mut spans = vec![Span::styled(left.to_string(), style)];
++
++    if let Some(title) = title {
++        let title_width = title.width();
++        if title_width < middle_width {
++            spans.push(Span::styled("─".to_string(), style));
++            spans.push(Span::styled(title.to_string(), style));
++            spans.push(Span::styled(
++                "─".repeat(middle_width.saturating_sub(title_width + 1)),
++                style,
++            ));
++        } else {
++            spans.push(Span::styled("─".repeat(middle_width), style));
++        }
++    } else {
++        spans.push(Span::styled("─".repeat(middle_width), style));
++    }
++
++    spans.push(Span::styled(right.to_string(), style));
++    Line::from(spans).style(style)
++}
++
++fn render_user_box(
++    content_lines: Vec<Line<'static>>,
++    width: u16,
++    style: Style,
++    border_style: Style,
++    title: Option<&str>,
++) -> Vec<Line<'static>> {
++    if width < USER_BOX_MIN_WIDTH {
++        return content_lines;
++    }
++
++    let inner_width = usize::from(width.saturating_sub(USER_BOX_HORIZONTAL_CHROME).max(1));
++    let mut lines = Vec::with_capacity(content_lines.len() + 4);
++    lines.push(Line::from("").style(style));
++    lines.push(user_box_rule("╭", "╮", inner_width + 2, border_style, title));
++
++    for line in content_lines {
++        let padded = pad_line_to_width(line, inner_width, style);
++        let mut spans = Vec::with_capacity(padded.spans.len() + 2);
++        spans.push(Span::styled("│ ".to_string(), border_style));
++        spans.extend(padded.spans);
++        spans.push(Span::styled(" │".to_string(), border_style));
++        lines.push(Line::from(spans).style(style));
++    }
++
++    lines.push(user_box_rule("╰", "╯", inner_width + 2, border_style, None));
++    lines.push(Line::from("").style(style));
++    lines
++}
++
++fn render_user_bar(content_lines: Vec<Line<'static>>, width: u16, style: Style) -> Vec<Line<'static>> {
++    if width < USER_BAR_MIN_WIDTH {
++        return content_lines;
++    }
++
++    let inner_width = usize::from(width.saturating_sub(USER_BAR_PREFIX_WIDTH).max(1));
++    let mut lines = Vec::with_capacity(content_lines.len() + 2);
++    lines.push(Line::from(""));
++
++    for (idx, line) in content_lines.into_iter().enumerate() {
++        let prefix = if idx == 0 { "› " } else { "  " };
++        let padded = pad_line_to_width(line, inner_width, style);
++        let mut spans = Vec::with_capacity(padded.spans.len() + 2);
++        spans.push(Span::styled(prefix.to_string(), style));
++        spans.extend(padded.spans);
++        lines.push(Line::from(spans).style(style));
++    }
++
++    lines.push(Line::from(""));
++    lines
++}
++
++fn render_user_message(
++    theme: UserMessageTheme,
++    content_lines: Vec<Line<'static>>,
++    width: u16,
++    style: Style,
++    border_style: Style,
++) -> Vec<Line<'static>> {
++    match theme {
++        UserMessageTheme::Box | UserMessageTheme::BoxClean => {
++            render_user_box(content_lines, width, style, border_style, theme.label())
++        }
++        UserMessageTheme::Flat | UserMessageTheme::Slate => render_user_bar(content_lines, width, style),
++    }
++}
++
+ impl HistoryCell for UserHistoryCell {
+     fn display_lines(&self, width: u16) -> Vec<Line<'static>> {
+-        let wrap_width = width
+-            .saturating_sub(
+-                LIVE_PREFIX_COLS + 1, /* keep a one-column right margin for wrapping */
+-            )
+-            .max(1);
++        let theme = user_message_theme();
++        let chrome_width = if theme.uses_box() {
++            USER_BOX_HORIZONTAL_CHROME
++        } else {
++            USER_BAR_PREFIX_WIDTH
++        };
++        let wrap_width = width.saturating_sub(chrome_width).max(1);
+ 
+         let style = user_message_style();
++        let border_style = user_message_border_style();
+         let element_style = style.fg(Color::Cyan);
+ 
+         let wrapped_remote_images = if self.remote_image_urls.is_empty() {
+@@ -330,7 +445,6 @@ impl HistoryCell for UserHistoryCell {
+                 message_without_trailing_newlines
+                     .split('\n')
+                     .map(|line| Line::from(line).style(style)),
+-                // Wrap algorithm matches textarea.rs.
+                 RtOptions::new(usize::from(wrap_width))
+                     .wrap_algorithm(textwrap::WrapAlgorithm::FirstFit),
+             );
+@@ -356,29 +470,20 @@ impl HistoryCell for UserHistoryCell {
+             return Vec::new();
+         }
+ 
+-        let mut lines: Vec<Line<'static>> = vec![Line::from("").style(style)];
++        let mut content_lines: Vec<Line<'static>> = Vec::new();
+ 
+         if let Some(wrapped_remote_images) = wrapped_remote_images {
+-            lines.extend(prefix_lines(
+-                wrapped_remote_images,
+-                "  ".into(),
+-                "  ".into(),
+-            ));
++            content_lines.extend(wrapped_remote_images);
+             if wrapped_message.is_some() {
+-                lines.push(Line::from("").style(style));
++                content_lines.push(Line::from("").style(style));
+             }
+         }
+ 
+         if let Some(wrapped_message) = wrapped_message {
+-            lines.extend(prefix_lines(
+-                wrapped_message,
+-                "› ".bold().dim(),
+-                "  ".into(),
+-            ));
++            content_lines.extend(wrapped_message);
+         }
+ 
+-        lines.push(Line::from("").style(style));
+-        lines
++        render_user_message(theme, content_lines, width, style, border_style)
+     }
+ }
+ 
+diff --git a/codex-rs/tui/src/style.rs b/codex-rs/tui/src/style.rs
+index fc8fd4c..fdb7c8f 100644
+--- a/codex-rs/tui/src/style.rs
++++ b/codex-rs/tui/src/style.rs
+@@ -1,24 +1,90 @@
+-use crate::color::blend;
+-use crate::color::is_light;
+-use crate::terminal_palette::best_color;
+ use crate::terminal_palette::default_bg;
+ use ratatui::style::Color;
+ use ratatui::style::Style;
++use std::env;
++use std::sync::OnceLock;
++
++#[derive(Clone, Copy, Debug, Eq, PartialEq)]
++pub enum UserMessageTheme {
++    Box,
++    BoxClean,
++    Flat,
++    Slate,
++}
++
++impl UserMessageTheme {
++    fn parse(value: &str) -> Self {
++        match value.trim().to_ascii_lowercase().as_str() {
++            "box-clean" | "boxclean" | "clean" => Self::BoxClean,
++            "flat" => Self::Flat,
++            "slate" => Self::Slate,
++            _ => Self::Box,
++        }
++    }
++
++    pub fn uses_box(self) -> bool {
++        matches!(self, Self::Box | Self::BoxClean)
++    }
++
++    pub fn label(self) -> Option<&'static str> {
++        match self {
++            Self::Box => Some(" You "),
++            Self::BoxClean | Self::Flat | Self::Slate => None,
++        }
++    }
++
++    fn user_fg(self) -> Color {
++        Color::Rgb(239, 240, 235)
++    }
++
++    fn user_bg(self) -> Color {
++        match self {
++            Self::Box => Color::Rgb(43, 54, 65),
++            Self::BoxClean => Color::Rgb(37, 47, 58),
++            Self::Flat => Color::Rgb(57, 80, 96),
++            Self::Slate => Color::Rgb(50, 61, 72),
++        }
++    }
++
++    fn border_fg(self) -> Color {
++        match self {
++            Self::Box => Color::Rgb(104, 192, 204),
++            Self::BoxClean => Color::Rgb(137, 156, 173),
++            Self::Flat => self.user_bg(),
++            Self::Slate => self.user_bg(),
++        }
++    }
++}
++
++pub fn user_message_theme() -> UserMessageTheme {
++    static THEME: OnceLock<UserMessageTheme> = OnceLock::new();
++    *THEME.get_or_init(|| {
++        env::var("CODEX_CHAT_THEME")
++            .ok()
++            .map(|value| UserMessageTheme::parse(&value))
++            .unwrap_or(UserMessageTheme::Box)
++    })
++}
+ 
+ pub fn user_message_style() -> Style {
+     user_message_style_for(default_bg())
+ }
+ 
++pub fn user_message_border_style() -> Style {
++    let theme = user_message_theme();
++    Style::default()
++        .fg(theme.border_fg())
++        .bg(theme.user_bg())
++}
++
+ pub fn proposed_plan_style() -> Style {
+     proposed_plan_style_for(default_bg())
+ }
+ 
+ /// Returns the style for a user-authored message using the provided terminal background.
+-pub fn user_message_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
+-    match terminal_bg {
+-        Some(bg) => Style::default().bg(user_message_bg(bg)),
+-        None => Style::default(),
+-    }
++pub fn user_message_style_for(_terminal_bg: Option<(u8, u8, u8)>) -> Style {
++    let theme = user_message_theme();
++    Style::default().fg(theme.user_fg()).bg(theme.user_bg())
+ }
+ 
+ pub fn proposed_plan_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
+@@ -29,13 +95,8 @@ pub fn proposed_plan_style_for(terminal_bg: Option<(u8, u8, u8)>) -> Style {
+ }
+ 
+ #[allow(clippy::disallowed_methods)]
+-pub fn user_message_bg(terminal_bg: (u8, u8, u8)) -> Color {
+-    let (top, alpha) = if is_light(terminal_bg) {
+-        ((0, 0, 0), 0.04)
+-    } else {
+-        ((255, 255, 255), 0.12)
+-    };
+-    best_color(blend(top, terminal_bg, alpha))
++pub fn user_message_bg(_terminal_bg: (u8, u8, u8)) -> Color {
++    user_message_theme().user_bg()
+ }
+ 
+ #[allow(clippy::disallowed_methods)]
