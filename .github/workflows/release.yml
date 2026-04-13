@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-windows-release:
     runs-on: windows-latest
@@ -35,14 +38,14 @@ jobs:
         run: |
           .\windows\package-release.ps1 -BuiltCodexExePath "$env:RUNNER_TEMP\codex-build-themes\release\codex.exe" -Version "${{ github.ref_name }}"
 
-      - name: Upload bundle to GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: dist/*.zip
-
       - name: Upload bundle as workflow artifact
         uses: actions/upload-artifact@v4
         with:
           name: codex-chat-themes-windows-x64
           path: dist/*.zip
+
+      - name: Upload bundle to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
