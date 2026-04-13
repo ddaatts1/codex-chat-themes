@@ -39,6 +39,8 @@ Tested against upstream Codex commit:
 
 - `patches/codex-chat-themes.patch`: patch against the upstream `openai/codex` repo
 - `windows/build.ps1`: applies the patch and builds `codex.exe`
+- `windows/build-and-install.ps1`: one-command clone/build/install script
+- `windows/build-and-install.cmd`: double-click friendly Windows wrapper
 - `windows/install.ps1`: installs the built binary into your existing npm Codex launcher
 - `windows/rollback.ps1`: restores the original launcher
 - `windows/codex-theme.cmd`: theme-switch command
@@ -51,7 +53,28 @@ Tested against upstream Codex commit:
 - `codex` already installed via npm
 - `git`
 
-## Build
+## One-Click Setup
+
+If you already have the prerequisites above, you can do the full setup with one command:
+
+```cmd
+windows\build-and-install.cmd
+```
+
+That wrapper will:
+
+- clone `openai/codex` into `..\codex-src` if it is missing
+- apply the patch
+- build `codex.exe`
+- install the custom launcher
+
+If your Codex source lives somewhere else:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\windows\build-and-install.ps1 -CodexSourcePath C:\path\to\codex-src
+```
+
+## Manual Build
 
 Clone the upstream Codex repo first:
 
