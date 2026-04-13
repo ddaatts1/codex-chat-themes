@@ -4,11 +4,14 @@ param(
     [string]$CodexSourcePath,
     [string]$BuildRoot = "D:\codex-build-themes",
     [string]$NpmBinDir = "$env:APPDATA\npm",
-    [string]$CodexHome = "$env:USERPROFILE\.codex"
+    [string]$CodexHome = "$env:USERPROFILE\.codex",
+    [ValidateSet("Debug", "Release", "debug", "release")]
+    [string]$Configuration = "Release"
 )
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $defaultSourcePath = Join-Path (Split-Path -Parent $repoRoot) "codex-src"
+$configLower = $Configuration.ToLowerInvariant()
 
 if (-not $CodexSourcePath) {
     $CodexSourcePath = $defaultSourcePath
@@ -25,9 +28,9 @@ if (-not (Test-Path -LiteralPath $CodexSourcePath)) {
 $resolvedSource = (Resolve-Path -LiteralPath $CodexSourcePath).Path
 $buildScript = Join-Path $PSScriptRoot "build.ps1"
 $installScript = Join-Path $PSScriptRoot "install.ps1"
-$builtExe = Join-Path $BuildRoot "debug\codex.exe"
+$builtExe = Join-Path $BuildRoot "$configLower\codex.exe"
 
-& $buildScript -CodexSourcePath $resolvedSource -BuildRoot $BuildRoot
+& $buildScript -CodexSourcePath $resolvedSource -BuildRoot $BuildRoot -Configuration $Configuration
 
 if (-not (Test-Path -LiteralPath $builtExe)) {
     throw "Built codex.exe not found at $builtExe"

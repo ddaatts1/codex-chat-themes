@@ -1,9 +1,16 @@
 param(
-    [Parameter(Mandatory = $true)]
     [string]$BuiltCodexExePath,
     [string]$NpmBinDir = "$env:APPDATA\npm",
     [string]$CodexHome = "$env:USERPROFILE\.codex"
 )
+
+if (-not $BuiltCodexExePath) {
+    $BuiltCodexExePath = Join-Path $PSScriptRoot "codex.exe"
+}
+
+if (-not (Test-Path -LiteralPath $BuiltCodexExePath)) {
+    throw "Built codex.exe not found at $BuiltCodexExePath"
+}
 
 $builtExe = (Resolve-Path -LiteralPath $BuiltCodexExePath).Path
 $launcherPath = Join-Path $NpmBinDir "codex.cmd"

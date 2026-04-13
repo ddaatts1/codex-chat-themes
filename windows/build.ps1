@@ -1,7 +1,11 @@
+$ErrorActionPreference = "Stop"
+
 param(
     [Parameter(Mandatory = $true)]
     [string]$CodexSourcePath,
-    [string]$BuildRoot = "D:\codex-build-themes"
+    [string]$BuildRoot = "D:\codex-build-themes",
+    [ValidateSet("Debug", "Release", "debug", "release")]
+    [string]$Configuration = "Release"
 )
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
@@ -10,6 +14,12 @@ $resolvedSource = (Resolve-Path -LiteralPath $CodexSourcePath).Path
 $resolvedBuildRoot = $BuildRoot
 $tempDir = Join-Path $resolvedBuildRoot "temp"
 $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+$configLower = $Configuration.ToLowerInvariant()
+$cargoArgs = @("build", "-p", "codex-cli", "--bin", "codex")
+
+if ($configLower -eq "release") {
+    $cargoArgs += "--release"
+}
 
 if (-not (Test-Path -LiteralPath $patchPath)) {
     throw "Patch not found: $patchPath"
@@ -49,13 +59,14 @@ try {
     New-Item -ItemType Directory -Force -Path $tempDir | Out-Null
 
     $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
-    $cmd = "call `"$vcvars`" && set PATH=$cargoBin;%PATH% && set `"CARGO_TARGET_DIR=$resolvedBuildRoot`" && set `"TEMP=$tempDir`" && set `"TMP=$tempDir`" && cargo build -p codex-cli --bin codex"
+    $cargoCommand = $cargoArgs -join ' '
+    $cmd = "call `"$vcvars`" && set PATH=$cargoBin;%PATH% && set `"CARGO_TARGET_DIR=$resolvedBuildRoot`" && set `"TEMP=$tempDir`" && set `"TMP=$tempDir`" && cargo $cargoCommand"
     cmd.exe /d /s /c $cmd
     if ($LASTEXITCODE -ne 0) {
         throw "cargo build failed with exit code $LASTEXITCODE"
     }
 
-    Write-Host "Built: $(Join-Path $resolvedBuildRoot 'debug\codex.exe')"
+    Write-Host "Built: $(Join-Path $resolvedBuildRoot "$configLower\codex.exe")"
 }
 finally {
     Pop-Location

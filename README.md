@@ -35,6 +35,25 @@ Tested against upstream Codex commit:
 
 - `1de0085418340b3e7f7136cfb5e56b4bebafc584`
 
+## Download
+
+If you do not want to clone or build anything, download the latest Windows zip from GitHub Releases, extract it, then run:
+
+```cmd
+install.cmd
+```
+
+That release bundle already includes:
+
+- `codex.exe`
+- `install.cmd`
+- `install.ps1`
+- `rollback.cmd`
+- `rollback.ps1`
+- `codex-theme.cmd`
+
+You still need `codex` installed via npm on the target machine.
+
 ## What this repo contains
 
 - `patches/codex-chat-themes.patch`: patch against the upstream `openai/codex` repo
@@ -42,10 +61,16 @@ Tested against upstream Codex commit:
 - `windows/build-and-install.ps1`: one-command clone/build/install script
 - `windows/build-and-install.cmd`: double-click friendly Windows wrapper
 - `windows/install.ps1`: installs the built binary into your existing npm Codex launcher
+- `windows/install.cmd`: double-click friendly installer wrapper
 - `windows/rollback.ps1`: restores the original launcher
+- `windows/rollback.cmd`: double-click friendly rollback wrapper
+- `windows/package-release.ps1`: assembles a GitHub Releases zip bundle
+- `.github/workflows/release.yml`: builds and publishes the Windows release bundle on tags
 - `windows/codex-theme.cmd`: theme-switch command
 
 ## Requirements
+
+For source builds:
 
 - Windows x64
 - Rust toolchain with `cargo`
@@ -53,7 +78,7 @@ Tested against upstream Codex commit:
 - `codex` already installed via npm
 - `git`
 
-## One-Click Setup
+## One-Click Setup From Source
 
 If you already have the prerequisites above, you can do the full setup with one command:
 
@@ -65,7 +90,7 @@ That wrapper will:
 
 - clone `openai/codex` into `..\codex-src` if it is missing
 - apply the patch
-- build `codex.exe`
+- build a release `codex.exe`
 - install the custom launcher
 
 If your Codex source lives somewhere else:
@@ -85,21 +110,27 @@ git clone https://github.com/openai/codex.git codex-src
 Build the themed binary:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\windows\build.ps1 -CodexSourcePath C:\path\to\codex-src
+powershell -ExecutionPolicy Bypass -File .\windows\build.ps1 -CodexSourcePath C:\path\to\codex-src -Configuration Release
 ```
 
 By default it builds to:
 
 ```text
-D:\codex-build-themes\debug\codex.exe
+D:\codex-build-themes\release\codex.exe
 ```
 
 ## Install
 
-Install the built binary into your existing npm Codex launcher:
+If you already built the binary yourself:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\windows\install.ps1 -BuiltCodexExePath D:\codex-build-themes\debug\codex.exe
+powershell -ExecutionPolicy Bypass -File .\windows\install.ps1 -BuiltCodexExePath D:\codex-build-themes\release\codex.exe
+```
+
+If you downloaded a release bundle, just run:
+
+```cmd
+install.cmd
 ```
 
 That script:
@@ -131,6 +162,14 @@ codex
 
 ## Rollback
 
+For a release bundle:
+
+```cmd
+rollback.cmd
+```
+
+Or directly:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\windows\rollback.ps1
 ```
@@ -139,6 +178,6 @@ This restores the original `codex.cmd` and removes `codex-theme.cmd`.
 
 ## Notes
 
-- This repo does not ship prebuilt binaries.
+- The repo can publish prebuilt Windows bundles through GitHub Releases.
 - The install path assumes the npm launcher is at `%APPDATA%\npm\codex.cmd`.
 - The patch only changes the user-message presentation inside the Codex TUI. It does not require WezTerm.
