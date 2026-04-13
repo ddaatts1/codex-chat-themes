@@ -49,6 +49,17 @@ if (-not (Test-Path -LiteralPath $vcvars)) {
     throw "vcvars64.bat not found at $vcvars"
 }
 
+$msvcRoot = Join-Path $installPath "VC\Tools\MSVC"
+$msvcLink = Get-ChildItem -LiteralPath $msvcRoot -Directory |
+    Sort-Object Name -Descending |
+    ForEach-Object { Join-Path $_.FullName "bin\Hostx64\x64\link.exe" } |
+    Where-Object { Test-Path -LiteralPath $_ } |
+    Select-Object -First 1
+
+if (-not $msvcLink) {
+    throw "MSVC link.exe not found under $msvcRoot"
+}
+
 Push-Location $resolvedSource
 try {
     git apply --reverse --check $patchPath 2>$null
@@ -70,7 +81,7 @@ try {
 
     $cargoBin = Join-Path $env:USERPROFILE ".cargo\bin"
     $cargoCommand = $cargoArgs -join ' '
-    $cmd = "call `"$vcvars`" && set PATH=$cargoBin;%PATH% && set `"CARGO_TARGET_DIR=$resolvedBuildRoot`" && set `"TEMP=$tempDir`" && set `"TMP=$tempDir`" && cd /d `"$cargoWorkspace`" && cargo $cargoCommand"
+    $cmd = "call `"$vcvars`" && set PATH=$cargoBin;%PATH% && set `"CARGO_TARGET_DIR=$resolvedBuildRoot`" && set `"TEMP=$tempDir`" && set `"TMP=$tempDir`" && set `"CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=$msvcLink`" && cd /d `"$cargoWorkspace`" && cargo $cargoCommand"
     cmd.exe /d /s /c $cmd
     if ($LASTEXITCODE -ne 0) {
         throw "cargo build failed with exit code $LASTEXITCODE"
