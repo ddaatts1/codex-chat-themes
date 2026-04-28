@@ -43,11 +43,13 @@ Codex Chat Themes for Windows
 Quick install:
 1. Make sure Codex is already installed with npm.
 2. Double-click install.cmd or run .\install.ps1.
-3. Open a new shell and run: codex
-4. Switch themes with: codex-theme list
+3. The installer will place wrappers in %USERPROFILE%\.codex\tools and add that folder to your user PATH.
+4. Open a new shell and run: codex
+5. Switch themes with: codex-theme list
 
 Rollback:
 - Double-click rollback.cmd or run .\rollback.ps1
+- This removes the custom wrapper and falls back to the npm-installed codex launcher
 "@ | Set-Content -LiteralPath $releaseReadme -Encoding ascii
 
 Compress-Archive -Path (Join-Path $bundleRoot '*') -DestinationPath $zipPath -Force

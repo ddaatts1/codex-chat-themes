@@ -60,7 +60,7 @@ You still need `codex` installed via npm on the target machine.
 - `windows/build.ps1`: applies the patch and builds `codex.exe`
 - `windows/build-and-install.ps1`: one-command clone/build/install script
 - `windows/build-and-install.cmd`: double-click friendly Windows wrapper
-- `windows/install.ps1`: installs the built binary into your existing npm Codex launcher
+- `windows/install.ps1`: installs a custom wrapper into `%USERPROFILE%\.codex\tools` and keeps npm Codex as fallback
 - `windows/install.cmd`: double-click friendly installer wrapper
 - `windows/rollback.ps1`: restores the original launcher
 - `windows/rollback.cmd`: double-click friendly rollback wrapper
@@ -135,10 +135,11 @@ install.cmd
 
 That script:
 
-- backs up `%APPDATA%\npm\codex.cmd` to `codex.cmd.orig`
-- installs `codex-theme.cmd`
+- copies the themed binary to `%USERPROFILE%\.codex\tools\codex-themed.exe`
+- installs `codex.cmd` and `codex-theme.cmd` into `%USERPROFILE%\.codex\tools`
 - creates `%USERPROFILE%\.codex\chat-theme.txt` if needed
-- rewrites `codex.cmd` so it launches the custom binary first and falls back to the original launcher
+- prepends `%USERPROFILE%\.codex\tools` to the user `PATH`
+- keeps the npm-installed `codex.cmd` untouched as a fallback launcher
 
 ## Usage
 
@@ -174,10 +175,10 @@ Or directly:
 powershell -ExecutionPolicy Bypass -File .\windows\rollback.ps1
 ```
 
-This restores the original `codex.cmd` and removes `codex-theme.cmd`.
+This removes the custom wrapper from `%USERPROFILE%\.codex\tools`, so `codex` falls back to the npm-installed launcher again.
 
 ## Notes
 
 - The repo can publish prebuilt Windows bundles through GitHub Releases.
-- The install path assumes the npm launcher is at `%APPDATA%\npm\codex.cmd`.
+- The installer expects the npm launcher to exist at `%APPDATA%\npm\codex.cmd`, but it no longer overwrites it.
 - The patch only changes the user-message presentation inside the Codex TUI. It does not require WezTerm.
